@@ -1,0 +1,13 @@
+* {
+    padding: 0;
+    margin: 0;
+}
+
+body {
+    text-align: center;
+}
+
+#tetris {
+    display: inline-block;
+    margin: auto;
+}
