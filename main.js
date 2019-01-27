@@ -1,7 +1,7 @@
 class Effect {
     constructor(path) {
         this.sound = document.createElement("audio");
-        this.sound.src = path;
+        this.sound.src = `sounds/SFX_${path}.ogg`;
         this.sound.setAttribute("preload", "auto");
         this.sound.setAttribute("controls", "none");
         this.sound.style.display = "none";
@@ -10,7 +10,7 @@ class Effect {
     }
 
     play() {
-        this.sound.play();
+        // this.sound.play();
     }
 
     stop() {
@@ -18,20 +18,6 @@ class Effect {
     }
 }
 
-
-
-// this.sound = document.createElement("audio");
-//     this.sound.src = src;
-//     this.sound.setAttribute("preload", "auto");
-//     this.sound.setAttribute("controls", "none");
-//     this.sound.style.display = "none";
-//     document.body.appendChild(this.sound);
-//     this.play = function(){
-//         this.sound.play();
-//     }
-//     this.stop = function(){
-//         this.sound.pause();
-//     }
 
 class Tetris {
     constructor(width, height) {
@@ -49,9 +35,9 @@ class Tetris {
 
         this.timeFrame = 10;
         this.lastUpdated = 0;
-        this.debugLines = false;
+        this.debugLines = true;
 
-        this.level = 10;
+        this.speed = 30;
 
 
         this.pieces = [
@@ -77,8 +63,16 @@ class Tetris {
         ];
 
         this.sounds = {
-            move: new Effect("sounds/SFX_PieceMoveLR.ogg"),
-            rotate: new Effect("sounds/SFX_PieceRotateLR.ogg")
+            fall: new Effect("PieceFall"),
+            move: new Effect("PieceMoveLR"),
+            rotate: new Effect("PieceRotateLR"),
+            lines: [
+                0,
+                new Effect("SpecialLineClearSingle"),
+                new Effect("SpecialLineClearDouble"),
+                new Effect("SpecialLineClearTriple"),
+                new Effect("SpecialTetris")
+            ]
         };
 
         this.tileImage = new Image();
@@ -176,31 +170,99 @@ class Tetris {
         return fits;
     }
 
+
+    rotatePiece(n) {
+        this.currentRotation += n;
+        this.sounds.rotate.play();
+    }
+
+    movePieceX(n) {
+        this.currentX += n;
+        this.sounds.move.play();
+    }
+
+    movePieceY(n) {
+        this.currentY += n;
+        this.sounds.move.play();
+    }
+
     binds() {
         document.addEventListener('keydown', e => {
-            if (e.key === 'w' && this.testFor("rotate")) {
+            if (e.key === 'w') {
 
-                this.currentRotation++;
-                this.sounds.rotate.play();
+                if(this.testFor("rotate")) {
+                    this.rotatePiece(1);
+                }
 
-            } else if (e.key === 'a' && this.testFor("left")) {
+            } else if (e.key === 'a') {
 
-                this.currentX--;
-                this.sounds.move.play();
+                if(this.testFor("left")) {
+                    this.movePieceX(-1);
+                }
 
-            } else if (e.key === 's' && this.testFor("down")) {
-
-                this.currentY++;
-
-            } else if (e.key === 'd' && this.testFor("right")) {
-
-                this.currentX++;
-                this.sounds.move.play();
+            } else if (e.key === 's') {
                 
-            } else {
+                if(this.testFor("down")) {
+                    this.movePieceY(1);
+                }
 
+            } else if (e.key === 'd') {
+                
+                if(this.testFor("right")) {
+                    this.movePieceX(1);
+                }
             }
         })
+
+
+        let initialX = null;
+        let initialY = null;
+
+        this.canvas.addEventListener("touchstart", e => {
+            initialX = e.touches[0].clientX;
+            initialY = e.touches[0].clientY;
+        }, false);
+
+        this.canvas.addEventListener("touchend", e => {
+            if (initialX === null || initialY === null) { return; }
+            if(this.testFor("rotate")) {
+                this.rotatePiece(1);
+            }
+        })
+
+        this.canvas.addEventListener("touchmove", e => {
+            if (initialX === null || initialY === null) { return; }
+
+            const currentX = e.touches[0].clientX;
+            const currentY = e.touches[0].clientY;
+
+            const diffX = initialX - currentX;
+            const diffY = initialY - currentY;
+
+            if (Math.abs(diffX) > Math.abs(diffY)) {
+                if (diffX > 0) {
+                    if(this.testFor("left")) {
+                        this.movePieceX(-1);
+                    }
+                } else {
+                    if(this.testFor("right")) {
+                        this.movePieceX(1);
+                    }
+                }
+            } else {
+                if (diffY > 0) {
+                    //Swiped Up
+                } else {
+                    if(this.testFor("down")) {
+                        this.movePieceY(1);
+                    }
+                }
+            }
+
+            initialX = null;
+            initialY = null;
+            e.preventDefault();
+        }, false);
     }
 
     makeStatic() {
@@ -257,17 +319,20 @@ class Tetris {
                     }
                 }
             }
+
+            this.sounds.lines[lines.length].play();
         }
     }
 
 
     update() {
-        if (++this.lastUpdated % (20 - this.level) == 0) {
+        if (++this.lastUpdated % this.speed == 0) {
             if(this.pieceFits(
                 this.currentPiece,
                 this.currentX,
                 this.currentY+1,
                 this.currentRotation)) {
+                    // this.sounds.fall.play();
                     this.currentY++;
                     if(this.debugLines) {
                         console.log(
