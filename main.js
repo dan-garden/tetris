@@ -1,43 +1,26 @@
-class Effect {
-    constructor(path) {
-        this.sound = document.createElement("audio");
-        this.sound.src = `sounds/SFX_${path}.ogg`;
-        this.sound.setAttribute("preload", "auto");
-        this.sound.setAttribute("controls", "none");
-        this.sound.style.display = "none";
-
-        document.body.appendChild(this.sound);
-    }
-
-    play() {
-        // this.sound.play();
-    }
-
-    stop() {
-        this.sound.pause();
-    }
-}
-
-
 class Tetris {
     constructor(width, height) {
         this.canvas = document.getElementById('tetris');
         this.ctx = this.canvas.getContext('2d');
 
-        this.canvas.width = width;
-        this.canvas.height = height;
+        this.width = width;
+        this.height = height;
+
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
 
         this.boardWidth = 10;
         this.boardHeight = 20;
 
-        this.tileWidth = width / this.boardWidth;
-        this.tileHeight = height / this.boardHeight;
+        this.tileWidth = (width / this.boardWidth) / 2;
+        this.tileHeight = (height / this.boardHeight);
 
         this.timeFrame = 10;
         this.lastUpdated = 0;
-        this.debugLines = true;
+        this.debugLines = false;
+        this.lines = [];
 
-        this.speed = 30;
+        this.speed = 15;
 
 
         this.pieces = [
@@ -63,15 +46,16 @@ class Tetris {
         ];
 
         this.sounds = {
-            fall: new Effect("PieceFall"),
-            move: new Effect("PieceMoveLR"),
-            rotate: new Effect("PieceRotateLR"),
+            music: new Howl({src: ["sounds/SFX_Music.ogg"], volume: 0.3}),
+            fall: new Howl({src: ["sounds/SFX_PieceFall.ogg"]}),
+            move: new Howl({src: ["sounds/SFX_PieceMoveLR.ogg"]}),
+            rotate: new Howl({src: ["sounds/SFX_PieceRotateLR.ogg"]}),
             lines: [
                 0,
-                new Effect("SpecialLineClearSingle"),
-                new Effect("SpecialLineClearDouble"),
-                new Effect("SpecialLineClearTriple"),
-                new Effect("SpecialTetris")
+                new Howl({src: ["sounds/SFX_SpecialLineClearSingle.ogg"]}),
+                new Howl({src: ["sounds/SFX_SpecialLineClearDouble.ogg"]}),
+                new Howl({src: ["sounds/SFX_SpecialLineClearTriple.ogg"]}),
+                new Howl({src: ["sounds/SFX_SpecialTetris.ogg"]})
             ]
         };
 
@@ -86,7 +70,7 @@ class Tetris {
     }
 
     reset() {
-        this.running = false;
+        this.running = true;
         this.currentPiece = 0;
         this.currentRotation = 0;
         this.currentX = 0;
@@ -103,8 +87,31 @@ class Tetris {
         }
 
 
-
+        this.sounds.music.play();
         this.dropPiece();
+    }
+
+    get randomPiece() {
+        const piece = Math.floor(Math.random() * this.pieces.length);
+        return piece === this.nextPiece ? this.randomPiece : piece;
+        // return 0;
+    }
+
+    get randomRotation() {
+        return Math.floor(Math.random() * 3);
+    }
+
+    get randomX() {
+        return Math.floor(Math.random() * this.boardWidth-1);
+    }
+
+    dropPiece() {
+        this.currentPiece = this.nextPiece;
+        this.nextPiece = this.randomPiece;
+        this.currentX = (this.boardWidth / 2) - 2;
+        // this.currentX = this.randomX;
+        // this.currentRotation = this.randomRotation;
+        this.currentY = -4;
     }
 
     testFor(type) {
@@ -159,7 +166,7 @@ class Tetris {
                 let tileX = i + x;
                 let tileY = j + y;
                 let a = piece[j][i];
-                let b = (this.board[tileX] && this.board[tileX][tileY])? this.board[tileX][tileY] : 0;
+                let b = (this.board[tileX] && this.board[tileX][tileY])? this.board[tileX][tileY] : undefined;
                 if((a && b) || (a > 0 && b > 0) || (a > 0 && tileY == this.boardHeight)) {
                     fits = false;
                     break;
@@ -279,22 +286,8 @@ class Tetris {
         }
     }
 
-    get randomPiece() {
-        const piece = Math.floor(Math.random() * this.pieces.length);
-        return piece === this.nextPiece ? this.randomPiece : piece;
-    }
-
-
-    dropPiece() {
-        const randomPiece = this.randomPiece;
-        this.currentPiece = this.nextPiece;
-        this.nextPiece = randomPiece;
-        this.currentX = 3;
-        this.currentY = -4;
-    }
-
     tetrisCheck() {
-        let lines = [];
+        this.lines = [];
         for(let i = 0; i < this.boardHeight; i++) {
             let line = true;
             for(let j = 0; j < this.boardWidth; j++) {
@@ -304,23 +297,23 @@ class Tetris {
                     break;
                 }
             }
-            if(line) {
-                lines.push(i);
-            }
-            
+            if(line) this.lines.push(i)
         }
 
-
-        if(lines.length > 0) {
-            for(let i = 0; i < this.boardHeight; i++) {
-                if(lines.indexOf(i) > -1) {
-                    for(let j = 0; j < this.boardWidth; j++) {
-                        this.board[j][i] = 0;
-                    }
+        if(this.lines.length > 0) {
+            this.lines.forEach(i => {
+                for(let j = 0; j < this.boardWidth; j++) {
+                    // this.board[j][i] = 0;
+                    this.board[j].splice(i, 1);   
+                    //add a new empty line sub-array to the start of the array
+                    this.board[j].unshift(0); 
                 }
+            })
+            this.sounds.lines[this.lines.length].play();
+            
+            if(this.lines.length === 4) {
+                console.log("BOOM! TETRIS FOR JEFF");
             }
-
-            this.sounds.lines[lines.length].play();
         }
     }
 
@@ -351,11 +344,12 @@ class Tetris {
     }
 
 
-    draw() {
+    drawBoard() {
+        if(this.lines.length > 0) console.log(this.lines);
         for(let i = 0; i < this.boardWidth; i++) {
             for(let j = 0; j < this.boardHeight; j++) {
                 let n = this.board[i][j];
-                let x = i * this.tileWidth;
+                let x = (i * this.tileWidth) + (this.width / 4);
                 let y = j * this.tileHeight;
                 this.ctx.fillStyle = this.pieceColors[n];
                 this.ctx.fillRect(x, y, this.tileWidth, this.tileHeight);
@@ -372,13 +366,57 @@ class Tetris {
                 }
             }
         }
+    }
+
+    drawNextPiece(pieceX, pieceY) {
+        // console.log(this.nextPiece);
+        const tileW = this.tileWidth;
+        const tileH = this.tileHeight;
+        let currentPiece = this.getPiece(this.nextPiece, 0);
+        for(let i = 0; i < currentPiece[0].length; i++) {
+            for(let j = 0; j < currentPiece.length; j++) {
+                let n = currentPiece[j][i];
+                let x = pieceX + (i * (tileW));
+                let y = pieceY + (j * (tileH));
+                if(n > 0 && this.pieceColors[n] !== 'black') {
+                    this.ctx.fillStyle = this.pieceColors[n];
+                    this.ctx.fillRect(x, y, tileW, tileH);
+                    if(this.tileImage.loaded) {
+                        this.ctx.drawImage(this.tileImage, x, y, tileW, tileH);
+                    }
+                }
+            }
+        }
+    }
+
+    drawStats() {
+        const qWidth = this.width / 4;
+        const wMqWidth = this.width - qWidth;
+        this.ctx.fillStyle = "#212121";
+        this.ctx.fillRect(0, 0, qWidth, this.height);
 
 
+        this.ctx.fillStyle = "#212121";
+        this.ctx.fillRect(wMqWidth, 0, qWidth, this.height);
+
+        const boxNextX = wMqWidth + (qWidth - (this.tileWidth * 3.5));
+        const boxNextY = this.tileHeight;
+
+        this.ctx.fillStyle = "#FFF";
+        this.ctx.font = (this.tileHeight / 1.5) + "px Verdana";
+        this.ctx.fillText("NEXT", boxNextX, boxNextY);
+
+        this.ctx.fillStyle = "black";
+        this.drawNextPiece(boxNextX, boxNextY + this.tileHeight);
+        
+    }
+
+    drawCurrentPiece() {
         let currentPiece = this.piece;
         for(let i = 0; i < currentPiece[0].length; i++) {
             for(let j = 0; j < currentPiece.length; j++) {
                 let n = currentPiece[j][i];
-                let x = (this.currentX + i) * this.tileWidth;
+                let x = ((this.currentX + i) * this.tileWidth) + (this.width / 4);
                 let y = (this.currentY + j) * this.tileHeight;
 
                 if(n > 0 && this.pieceColors[n] !== 'black') {
@@ -395,7 +433,13 @@ class Tetris {
                 }
             }
         }
+    }
 
+
+    draw() {
+        this.drawBoard();
+        this.drawCurrentPiece();
+        this.drawStats();
     }
 
 

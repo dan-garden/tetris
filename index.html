@@ -6,12 +6,13 @@
     <title>Tetris</title>
     <meta name="viewport" content="width=device-width, user-scalable=no" />
     <link rel="stylesheet" type="text/css" media="screen" href="main.css" />
-    <script src="main.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.1.1/howler.min.js" type="text/javascript"></script>
+    <script src="main.js" type="text/javascript"></script>
 </head>
 <body>
     <canvas id="tetris"></canvas>
     <script>
-        const tetris = new Tetris(window.innerWidth, window.innerHeight);
+        const tetris = new Tetris(550, 600);
         tetris.start();
     </script>
 </body>
