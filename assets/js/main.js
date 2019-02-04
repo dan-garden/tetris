@@ -3,25 +3,11 @@ class Tetris {
         this.canvas = document.getElementById('tetris');
         this.ctx = this.canvas.getContext('2d');
 
-        this.width = width;
-        this.height = height;
-
-        this.canvas.width = this.width;
-        this.canvas.height = this.height;
-
-        this.boardWidth = 10;
-        this.boardHeight = 20;
-
-        this.tileWidth = (width / this.boardWidth) / 2;
-        this.tileHeight = (height / this.boardHeight);
+        this.resize(width, height);
 
         this.timeFrame = 10;
         this.lastUpdated = 0;
         this.debugLines = false;
-        this.lines = [];
-
-        this.speed = 15;
-
 
         this.pieces = [
             [[0,1,0,0],[0,1,0,0],[0,1,0,0],[0,1,0,0]],      //[I] Blue,
@@ -46,27 +32,41 @@ class Tetris {
         ];
 
         this.sounds = {
-            music: new Howl({src: ["sounds/SFX_Music.ogg"], volume: 0.3}),
-            fall: new Howl({src: ["sounds/SFX_PieceFall.ogg"]}),
-            move: new Howl({src: ["sounds/SFX_PieceMoveLR.ogg"]}),
-            rotate: new Howl({src: ["sounds/SFX_PieceRotateLR.ogg"]}),
+            music: new Howl({src: ["assets/sounds/SFX_Music.ogg"], volume: 0, loop: true}),
+            fall: new Howl({src: ["assets/sounds/SFX_PieceFall.ogg"], volume: 0}),
+            move: new Howl({src: ["assets/sounds/SFX_PieceMoveLR.ogg"], volume: 0}),
+            rotate: new Howl({src: ["assets/sounds/SFX_PieceRotateLR.ogg"], volume: 0}),
             lines: [
                 0,
-                new Howl({src: ["sounds/SFX_SpecialLineClearSingle.ogg"]}),
-                new Howl({src: ["sounds/SFX_SpecialLineClearDouble.ogg"]}),
-                new Howl({src: ["sounds/SFX_SpecialLineClearTriple.ogg"]}),
-                new Howl({src: ["sounds/SFX_SpecialTetris.ogg"]})
+                new Howl({src: ["assets/sounds/SFX_SpecialLineClearSingle.ogg"], volume: 0}),
+                new Howl({src: ["assets/sounds/SFX_SpecialLineClearDouble.ogg"], volume: 0}),
+                new Howl({src: ["assets/sounds/SFX_SpecialLineClearTriple.ogg"], volume: 0}),
+                new Howl({src: ["assets/sounds/SFX_SpecialTetris.ogg"], volume: 0})
             ]
         };
 
         this.tileImage = new Image();
-        this.tileImage.src = '/tile.png';
+        this.tileImage.src = '/assets/tile.png';
         this.tileImage.loaded = false;
         this.tileImage.onload = () => this.tileImage.loaded = true;
 
 
         this.binds();
         this.reset();
+    }
+
+    resize(width, height) {
+        this.width = width;
+        this.height = height;
+
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+
+        this.boardWidth = 10;
+        this.boardHeight = 20;
+
+        this.tileWidth = (this.width / this.boardWidth) / 2;
+        this.tileHeight = (this.height / this.boardHeight);
     }
 
     reset() {
@@ -76,8 +76,10 @@ class Tetris {
         this.currentX = 0;
         this.currentY = 0;
         this.nextPiece = this.randomPiece;
-
+        this.lines = [];
         this.board = [];
+        this.level = 0;
+        this.score = 0;
 
         for(let i = 0; i < this.boardWidth; i++) {
             this.board[i] = [];
@@ -89,6 +91,86 @@ class Tetris {
 
         this.sounds.music.play();
         this.dropPiece();
+    }
+
+
+    binds() {
+        // window.addEventListener('resize', () => this.resize(window.innerWidth, window.innerHeight))
+        document.addEventListener('keydown', e => {
+            if (e.key === 'w') {
+                if(this.testFor("rotate")) {
+                    this.rotatePiece(1);
+                }
+            } else if (e.key === 'a') {
+                if(this.testFor("left")) {
+                    this.movePieceX(-1);
+                }
+            } else if (e.key === 's') {
+                if(this.testFor("down")) {
+                    this.movePieceY(1);
+                }
+            } else if (e.key === 'd') {
+                if(this.testFor("right")) {
+                    this.movePieceX(1);
+                }
+            } else if(e.key === ' ') {
+                if(this.running) {
+                    this.stop();
+                } else {
+                    this.start();
+                }
+            }
+        })
+
+
+        let initialX = null;
+        let initialY = null;
+
+        this.canvas.addEventListener("touchstart", e => {
+            initialX = e.touches[0].clientX;
+            initialY = e.touches[0].clientY;
+        }, false);
+
+        this.canvas.addEventListener("touchend", e => {
+            if (initialX === null || initialY === null) { return; }
+            if(this.testFor("rotate")) {
+                this.rotatePiece(1);
+            }
+        })
+
+        this.canvas.addEventListener("touchmove", e => {
+            if (initialX === null || initialY === null) { return; }
+
+            const currentX = e.touches[0].clientX;
+            const currentY = e.touches[0].clientY;
+
+            const diffX = initialX - currentX;
+            const diffY = initialY - currentY;
+
+            if (Math.abs(diffX) > Math.abs(diffY)) {
+                if (diffX > 0) {
+                    if(this.testFor("left")) {
+                        this.movePieceX(-1);
+                    }
+                } else {
+                    if(this.testFor("right")) {
+                        this.movePieceX(1);
+                    }
+                }
+            } else {
+                if (diffY > 0) {
+                    //Swiped Up
+                } else {
+                    if(this.testFor("down")) {
+                        this.movePieceY(1);
+                    }
+                }
+            }
+
+            initialX = null;
+            initialY = null;
+            e.preventDefault();
+        }, false);
     }
 
     get randomPiece() {
@@ -115,6 +197,7 @@ class Tetris {
     }
 
     testFor(type) {
+        if(!this.running) return false;
         if (type === "rotate") {
             return this.pieceFits(
                 this.currentPiece,
@@ -193,85 +276,6 @@ class Tetris {
         this.sounds.move.play();
     }
 
-    binds() {
-        document.addEventListener('keydown', e => {
-            if (e.key === 'w') {
-
-                if(this.testFor("rotate")) {
-                    this.rotatePiece(1);
-                }
-
-            } else if (e.key === 'a') {
-
-                if(this.testFor("left")) {
-                    this.movePieceX(-1);
-                }
-
-            } else if (e.key === 's') {
-                
-                if(this.testFor("down")) {
-                    this.movePieceY(1);
-                }
-
-            } else if (e.key === 'd') {
-                
-                if(this.testFor("right")) {
-                    this.movePieceX(1);
-                }
-            }
-        })
-
-
-        let initialX = null;
-        let initialY = null;
-
-        this.canvas.addEventListener("touchstart", e => {
-            initialX = e.touches[0].clientX;
-            initialY = e.touches[0].clientY;
-        }, false);
-
-        this.canvas.addEventListener("touchend", e => {
-            if (initialX === null || initialY === null) { return; }
-            if(this.testFor("rotate")) {
-                this.rotatePiece(1);
-            }
-        })
-
-        this.canvas.addEventListener("touchmove", e => {
-            if (initialX === null || initialY === null) { return; }
-
-            const currentX = e.touches[0].clientX;
-            const currentY = e.touches[0].clientY;
-
-            const diffX = initialX - currentX;
-            const diffY = initialY - currentY;
-
-            if (Math.abs(diffX) > Math.abs(diffY)) {
-                if (diffX > 0) {
-                    if(this.testFor("left")) {
-                        this.movePieceX(-1);
-                    }
-                } else {
-                    if(this.testFor("right")) {
-                        this.movePieceX(1);
-                    }
-                }
-            } else {
-                if (diffY > 0) {
-                    //Swiped Up
-                } else {
-                    if(this.testFor("down")) {
-                        this.movePieceY(1);
-                    }
-                }
-            }
-
-            initialX = null;
-            initialY = null;
-            e.preventDefault();
-        }, false);
-    }
-
     makeStatic() {
         const piece = this.piece;
         for(let i = 0; i < piece[0].length; i++) {
@@ -311,7 +315,21 @@ class Tetris {
             })
             this.sounds.lines[this.lines.length].play();
             
-            if(this.lines.length === 4) {
+            // Single   100 × level
+            // Double	300 × level
+            // Triple	500 × level
+            // Tetris	800 x level
+
+
+            if(this.lines.length === 1) {
+                this.score += 100 * (this.level + 1);
+            } else if(this.lines.length === 2) {
+                this.score += 300 * (this.level + 1);
+            } else if(this.lines.length === 3) {
+                this.score += 500 * (this.level + 1);
+            } else if(this.lines.length === 4) {
+                this.score += 800 * (this.level + 1);
+                this.level++;
                 console.log("BOOM! TETRIS FOR JEFF");
             }
         }
@@ -319,7 +337,7 @@ class Tetris {
 
 
     update() {
-        if (++this.lastUpdated % this.speed == 0) {
+        if (++this.lastUpdated % (25 - this.level) == 0) {
             if(this.pieceFits(
                 this.currentPiece,
                 this.currentX,
@@ -327,14 +345,6 @@ class Tetris {
                 this.currentRotation)) {
                     // this.sounds.fall.play();
                     this.currentY++;
-                    if(this.debugLines) {
-                        console.log(
-                            'p: '+this.currentPiece,
-                            'x: '+this.currentX,
-                            'y: '+this.currentY,
-                            'r: '+this.currentRotation
-                        )
-                    }
                 } else {
                     this.makeStatic();
                     this.tetrisCheck();
@@ -389,12 +399,25 @@ class Tetris {
         }
     }
 
+    renderScore() {
+        return this.score;
+    }
+
     drawStats() {
         const qWidth = this.width / 4;
         const wMqWidth = this.width - qWidth;
         this.ctx.fillStyle = "#212121";
         this.ctx.fillRect(0, 0, qWidth, this.height);
 
+        const boxScoreX = (this.tileWidth);
+        const boxScoreY = this.tileHeight;
+
+
+        this.ctx.fillStyle = "#FFF";
+        this.ctx.font = (this.tileHeight / 1.5) + "px Verdana";
+        this.ctx.fillText("SCORE", boxScoreX, boxScoreY);
+
+        this.ctx.fillText(this.renderScore(), boxScoreX, boxScoreY * 2)
 
         this.ctx.fillStyle = "#212121";
         this.ctx.fillRect(wMqWidth, 0, qWidth, this.height);
