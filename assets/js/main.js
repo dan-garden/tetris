@@ -46,7 +46,7 @@ class Tetris {
         };
 
         this.tileImage = new Image();
-        this.tileImage.src = '/assets/tile.png';
+        this.tileImage.src = './assets/tile.png';
         this.tileImage.loaded = false;
         this.tileImage.onload = () => this.tileImage.loaded = true;
 
